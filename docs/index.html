@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentinel — DAO Proposal Security Agent</title>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #111827; --panel2: #0f172a; --border: #1f2937;
+    --text: #e5e7eb; --muted: #9ca3af; --green: #22c55e; --amber: #f59e0b;
+    --red: #ef4444; --blue: #38bdf8; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.5; }
+  header { border-bottom: 1px solid var(--border); padding: 20px 24px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
+  header h1 span { color: var(--green); font-family: var(--mono); }
+  header p { margin: 6px 0 0; color: var(--muted); max-width: 900px; }
+  header p code { color: var(--blue); font-family: var(--mono); font-size: 13px; }
+  main { display: grid; grid-template-columns: minmax(340px, 5fr) minmax(420px, 7fr);
+    gap: 16px; padding: 16px 24px 32px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 12px; }
+  .fixtures { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .fixtures button, .actions button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px; }
+  .fixtures button:hover, .actions button:hover { border-color: var(--blue); }
+  .fixtures button.active { border-color: var(--green); color: var(--green); }
+  textarea { width: 100%; min-height: 340px; background: #0a0e13; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    font-family: var(--mono); font-size: 12px; resize: vertical; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .actions button.primary { background: var(--green); color: #052e16; border-color: var(--green); font-weight: 700; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .hint code { font-family: var(--mono); color: var(--blue); }
+  #verdict { display: none; }
+  .verdict-card { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; }
+  .verdict-card.APPROVE { border-color: var(--green); background: rgba(34,197,94,.08); }
+  .verdict-card.REVIEW { border-color: var(--amber); background: rgba(245,158,11,.08); }
+  .verdict-card.REJECT { border-color: var(--red); background: rgba(239,68,68,.08); }
+  .verdict-word { font-size: 28px; font-weight: 800; letter-spacing: 1px; }
+  .verdict-card.APPROVE .verdict-word { color: var(--green); }
+  .verdict-card.REVIEW .verdict-word { color: var(--amber); }
+  .verdict-card.REJECT .verdict-word { color: var(--red); }
+  .score { margin-left: auto; text-align: right; }
+  .score b { font-size: 26px; font-family: var(--mono); }
+  .score span { color: var(--muted); font-size: 12px; display: block; }
+  .bar { height: 8px; background: #1f2937; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .bar i { display: block; height: 100%; }
+  .counts { color: var(--muted); font-size: 13px; margin: 4px 0 12px; font-family: var(--mono); }
+  .finding { border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 10px; background: var(--panel2); }
+  .finding.critical { border-left-color: var(--red); }
+  .finding.high { border-left-color: #f97316; }
+  .finding.medium { border-left-color: var(--amber); }
+  .finding.low { border-left-color: var(--blue); }
+  .finding.info { border-left-color: var(--muted); }
+  .finding h3 { margin: 0 0 4px; font-size: 15px; }
+  .chip { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 20px; margin-right: 6px; text-transform: uppercase; }
+  .chip.critical { background: var(--red); color: #fff; }
+  .chip.high { background: #f97316; color: #fff; }
+  .chip.medium { background: var(--amber); color: #1c1005; }
+  .chip.low { background: var(--blue); color: #082f49; }
+  .chip.info { background: var(--muted); color: #111827; }
+  .finding .meta { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .finding p { margin: 8px 0; font-size: 14px; }
+  .finding pre { background: #0a0e13; border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; overflow-x: auto; font-size: 12px; margin: 8px 0 0; }
+  .empty { color: var(--muted); text-align: center; padding: 48px 16px; }
+  footer { border-top: 1px solid var(--border); padding: 16px 24px; color: var(--muted); font-size: 13px; }
+  footer a { color: var(--blue); }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>&#9612;_</span> Sentinel — DAO Proposal Security Agent</h1>
+  <p>An autonomous agent that audits DAO governance proposals <em>and</em> the smart-contract code they execute — before the vote. Static analysis + governance risk + privacy checks, fully deterministic, no API key, no wallet, no server. Built for the <code>Terminal 3 Build+Scale Agent Micro Grant</code> (DoraHacks).</p>
+</header>
+<main>
+  <section class="panel">
+    <h2>1 · Proposal</h2>
+    <div class="fixtures" id="fixtures"></div>
+    <textarea id="input" spellcheck="false" placeholder="Paste a proposal JSON here, or pick a fixture above…"></textarea>
+    <div class="actions">
+      <button class="primary" id="run">▶ Analyse proposal</button>
+      <button id="copy">Copy markdown report</button>
+    </div>
+    <p class="hint">Proposal JSON shape: <code>{ id, title, description, proposerProposals, treasuryBalance, requestedAmount, timelockSeconds, executor: {type, signers}, targets: [{to, value, calldata, description, toIsContract}], claimsNoCodeChange, collectsUserData, dataDescription, code: [{file, source}] }</code>. Everything runs locally in your browser — nothing is uploaded.</p>
+  </section>
+  <section class="panel">
+    <h2>2 · Agent verdict</h2>
+    <div id="verdict"></div>
+    <div id="results"><div class="empty">Pick a fixture or paste a proposal, then press <b>Analyse proposal</b>.<br>Sentinel will score it 0–100 and list every finding with evidence.</div></div>
+  </section>
+</main>
+<footer>
+  Sentinel is deterministic, rule-based analysis — a second pair of eyes, not a substitute for a human audit. Source &amp; tests: <a href="https://github.com/dimasamirul1899-afk/terminal3-sentinel">github.com/dimasamirul1899-afk/terminal3-sentinel</a> · MIT
+</footer>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
